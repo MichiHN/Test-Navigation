@@ -145,13 +145,22 @@ class Gallery {
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(window.innerWidth, window.innerHeight);
         });
-
+    
+        // Hide blocker and instructions on click
         document.addEventListener('click', () => {
-            if (!this.isPointerLocked) {
-                this.enterPointerLock();
+            if (this.blockerActive) {
+                this.hideBlocker();
             }
         });
-
+    
+        // Hide blocker and instructions on joystick touch
+        const joystick = document.getElementById('joystick');
+        joystick.addEventListener('touchstart', () => {
+            if (this.blockerActive) {
+                this.hideBlocker();
+            }
+        });
+    
         document.addEventListener('pointerlockchange', () => {
             this.isPointerLocked = document.pointerLockElement === this.renderer.domElement;
             if (this.isPointerLocked) {
@@ -166,7 +175,7 @@ class Gallery {
                 document.getElementById('instructions').style.display = '';
             }
         });
-
+    
         window.addEventListener("keydown", (e) => {
             if (e.key === 'n') {
                 this.nextTrack();
@@ -174,7 +183,7 @@ class Gallery {
                 this.previousTrack();
             }
         });
-
+    
         const toggleButton = document.getElementById('control-toggle');
         toggleButton.addEventListener('click', () => {
             this.useJoystick = !this.useJoystick; // Toggle control mode
@@ -182,11 +191,18 @@ class Gallery {
             this.joystickDirection.set(0, 0); // Reset joystick direction
             document.getElementById('joystick').style.transform = 'translate(0, 0)'; // Reset joystick position
         });
-
+    
         const instructions = document.getElementById('instructions');
         instructions.addEventListener('click', () => {
             this.enterPointerLock();
         });
+    }
+    
+    // Method to hide blocker and instructions
+    hideBlocker() {
+        this.blockerActive = false;
+        document.getElementById('blocker').style.display = 'none';
+        document.getElementById('instructions').style.display = 'none';
     }
 
     nextTrack() {
@@ -306,7 +322,7 @@ class Gallery {
 
         this.checkCollision();
     }
-    
+
     checkCollision() {
         const halfWidth = this.gallerySize.width / 2;
         const halfDepth = this.gallerySize.depth / 2;
