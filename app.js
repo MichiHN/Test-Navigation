@@ -60,21 +60,18 @@ class Gallery {
         this.groundLevel = 2;
 
         this.joystickActive = false;
-        this.joystickCenter = new THREE.Vector2();
-        this.joystickDirection = new THREE.Vector2();
+        this.joystickDirection = new THREE.Vector3();
         this.useJoystick = false; // Flag to track control mode
 
-        this.setupJoystick();
         this.setupEventListeners();
-        this.animate();
+        this.setupJoystick(); // Initialize joystick
         this.init();
+        this.animate();
     }
 
     init() {
         this.createWalls();
         this.loadArtworks();
-        this.setupEventListeners();
-        this.animate();
     }
 
     createWalls() {
@@ -191,6 +188,12 @@ class Gallery {
             this.joystickDirection.set(0, 0); // Reset joystick direction
             document.getElementById('joystick').style.transform = 'translate(0, 0)'; // Reset joystick position
         });
+
+        window.addEventListener("keydown", (e) => {
+            if (this.useJoystick) {
+                e.preventDefault(); // Prevent default actions when joystick is active
+            }
+        });
     
         const instructions = document.getElementById('instructions');
         instructions.addEventListener('click', () => {
@@ -244,53 +247,38 @@ class Gallery {
     }
 
     setupJoystick() {
-        const joystick = document.getElementById('joystick');
-        joystick.addEventListener('touchstart', (e) => {
-            if (this.useJoystick) {
-                this.joystickActive = true;
-                this.joystickCenter.set(e.touches[0].clientX, e.touches[0].clientY);
-                joystick.style.transition = 'none'; // Disable transition for smooth movement
-            }
+        // Create a nipple.js joystick
+        this.joystick = nipplejs.create({
+            zone: document.getElementById('joystick-container'),
+            mode: 'static', // 'static' or 'dynamic'
+            position: { left: '50%', bottom: '50%' },
+            size: 100, // Size of the joystick
+            color: 'blue', // Color of the joystick
         });
     
-        joystick.addEventListener('touchmove', (e) => {
-            if (this.joystickActive) {
-                const touch = e.touches[0];
-                const dx = touch.clientX - this.joystickCenter.x;
-                const dy = touch.clientY - this.joystickCenter.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                const maxDistance = 40; // Max joystick distance
-    
-                if (distance > maxDistance) {
-                    const angle = Math.atan2(dy, dx);
-                    this.joystickDirection.set(Math.cos(angle), Math.sin(angle)).multiplyScalar(maxDistance);
-                } else {
-                    this.joystickDirection.set(dx, dy);
-                }
-    
-                joystick.style.transform = `translate(${this.joystickDirection.x}px, ${this.joystickDirection.y}px)`;
-            }
+        // Handle joystick events
+        this.joystick.on('move', (evt, data) => {
+            const joystickForward = new THREE.Vector3(data.vector.x, 0, data.vector.y).normalize();
+            this.joystickDirection.copy(joystickForward); // Update joystick direction
         });
     
-        joystick.addEventListener('touchend', () => {
-            this.joystickActive = false;
-            this.joystickDirection.set(0, 0);
-            joystick.style.transform = 'translate(0, 0)';
+        this.joystick.on('end', () => {
+            this.joystickDirection.set(0, 0, 0); // Reset joystick direction
         });
     }
-    
+
     handleControls() {
         if (this.blockerActive) return; // Prevent controls if blocker is active
-    
+
         const speed = this.keys["Shift"] ? 0.2 : 0.1; 
         const forward = new THREE.Vector3();
         this.camera.getWorldDirection(forward);
         forward.y = 0; 
         forward.normalize();
-    
+
         const right = new THREE.Vector3();
         right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-    
+
         // Keyboard controls
         if (!this.useJoystick) {
             if (this.keys["w"]) this.camera.position.add(forward.clone().multiplyScalar(speed));
@@ -303,23 +291,22 @@ class Gallery {
             }
         } else {
             // Joystick controls
-            if (this.joystickActive) {
-                const joystickForward = new THREE.Vector3(this.joystickDirection.x, 0, this.joystickDirection.y).normalize();
-                this.camera.position.add(joystickForward.multiplyScalar(speed * 0.5)); // Adjust speed for joystick
+            if (this.joystickDirection.length() > 0) {
+                this.camera.position.add(this.joystickDirection.clone().multiplyScalar(speed));
             }
         }
-    
+
         if (this.isJumping) {
             this.verticalVelocity += this.gravity;
             this.camera.position.y += this.verticalVelocity;
-    
+
             if (this.camera.position.y <= this.groundLevel) {
                 this.camera.position.y = this.groundLevel;
                 this.isJumping = false;
                 this.verticalVelocity = 0; 
             }
         }
-    
+
         this.checkCollision();
     }
 
@@ -335,9 +322,9 @@ class Gallery {
     }
 
     animate() {
-        this.handleControls();
-        this.renderer.render(this.scene, this.camera);
         requestAnimationFrame(() => this.animate());
+        this.handleControls(); // Call handleControls in the animation loop
+        this.renderer.render(this.scene, this.camera);
     }
 }
 
