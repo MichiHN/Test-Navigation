@@ -252,7 +252,7 @@ class Gallery {
                 joystick.style.transition = 'none'; // Disable transition for smooth movement
             }
         });
-
+    
         joystick.addEventListener('touchmove', (e) => {
             if (this.joystickActive) {
                 const touch = e.touches[0];
@@ -260,37 +260,37 @@ class Gallery {
                 const dy = touch.clientY - this.joystickCenter.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 const maxDistance = 40; // Max joystick distance
-
+    
                 if (distance > maxDistance) {
                     const angle = Math.atan2(dy, dx);
                     this.joystickDirection.set(Math.cos(angle), Math.sin(angle)).multiplyScalar(maxDistance);
                 } else {
                     this.joystickDirection.set(dx, dy);
                 }
-
+    
                 joystick.style.transform = `translate(${this.joystickDirection.x}px, ${this.joystickDirection.y}px)`;
             }
         });
-
+    
         joystick.addEventListener('touchend', () => {
             this.joystickActive = false;
             this.joystickDirection.set(0, 0);
             joystick.style.transform = 'translate(0, 0)';
         });
     }
-
+    
     handleControls() {
         if (this.blockerActive) return; // Prevent controls if blocker is active
-
+    
         const speed = this.keys["Shift"] ? 0.2 : 0.1; 
         const forward = new THREE.Vector3();
         this.camera.getWorldDirection(forward);
         forward.y = 0; 
         forward.normalize();
-
+    
         const right = new THREE.Vector3();
         right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-
+    
         // Keyboard controls
         if (!this.useJoystick) {
             if (this.keys["w"]) this.camera.position.add(forward.clone().multiplyScalar(speed));
@@ -308,18 +308,18 @@ class Gallery {
                 this.camera.position.add(joystickForward.multiplyScalar(speed * 0.5)); // Adjust speed for joystick
             }
         }
-
+    
         if (this.isJumping) {
             this.verticalVelocity += this.gravity;
             this.camera.position.y += this.verticalVelocity;
-
+    
             if (this.camera.position.y <= this.groundLevel) {
                 this.camera.position.y = this.groundLevel;
                 this.isJumping = false;
                 this.verticalVelocity = 0; 
             }
         }
-
+    
         this.checkCollision();
     }
 
