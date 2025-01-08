@@ -60,7 +60,7 @@ class Gallery {
         this.groundLevel = 2;
 
         this.joystickActive = false;
-         this.joystickDirection = new THREE.Vector3(); // Initialize joystick direction
+        this.joystickDirection = new THREE.Vector3(0, 0, 0); // Initialize joystick direction
         this.useJoystick = false; // Flag to track control mode
 
         this.setupEventListeners();
@@ -263,20 +263,28 @@ class Gallery {
         // Create a nipple.js joystick
         this.joystick = nipplejs.create({
             zone: document.getElementById('joystick-container'),
-            mode: 'static', // 'static' or 'dynamic'
+            mode: 'static',
             position: { left: '50%', bottom: '50%' },
-            size: 100, // Size of the joystick
-            color: 'blue', // Color of the joystick
+            size: 100,
+            color: 'blue',
         });
-    
+
         // Handle joystick events
         this.joystick.on('move', (evt, data) => {
             const joystickForward = new THREE.Vector3(data.vector.x, 0, data.vector.y).normalize();
-            this.joystickDirection.copy(joystickForward); // Update joystick direction
+            this.joystickDirection.copy(joystickForward);
         });
 
         this.joystick.on('end', () => {
             this.joystickDirection.set(0, 0, 0); // Reset joystick direction
+        });
+
+        // Prevent default touch behavior
+        this.joystick.on('touchstart', (evt) => evt.preventDefault());
+        this.joystick.on('touchmove', (evt) => evt.preventDefault());
+        this.joystick.on('touchend', (evt) => {
+            evt.preventDefault();
+            this.joystickDirection.set(0, 0, 0); // Reset joystick direction on touch end
         });
     }
 
@@ -350,9 +358,17 @@ class Gallery {
         }
     }
 
+    updateCamera() {
+        const speed = 0.1; // Adjust speed as necessary
+        this.camera.position.x += this.joystickDirection.x * speed;
+        this.camera.position.z += this.joystickDirection.z * speed;
+        this.camera.lookAt(this.scene.position); // Keep looking at the center of the scene
+    }
+
     animate() {
         requestAnimationFrame(() => this.animate());
         this.handleControls(); // Call handleControls in the animation loop
+        this.updateCamera(); //Call updateCamera 
         this.renderer.render(this.scene, this.camera);
     }
 }
