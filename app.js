@@ -60,7 +60,7 @@ class Gallery {
         this.groundLevel = 2;
 
         this.joystickActive = false;
-        this.joystickDirection = new THREE.Vector3();
+         this.joystickDirection = new THREE.Vector3(); // Initialize joystick direction
         this.useJoystick = false; // Flag to track control mode
 
         this.setupEventListeners();
@@ -185,8 +185,17 @@ class Gallery {
         toggleButton.addEventListener('click', () => {
             this.useJoystick = !this.useJoystick; // Toggle control mode
             toggleButton.textContent = this.useJoystick ? 'Switch to Keyboard Controls' : 'Switch to Joystick Controls';
-            this.joystickDirection.set(0, 0); // Reset joystick direction
+            this.joystickDirection.set(0, 0, 0); // Reset joystick direction
             document.getElementById('joystick').style.transform = 'translate(0, 0)'; // Reset joystick position
+
+            if (this.useJoystick) {
+                // Remove mouse event listeners when using joystick
+                document.removeEventListener('mousemove', this.onMouseMove.bind(this));
+            } else {
+                // Re-add mouse event listeners when using keyboard
+                document.addEventListener('mousemove', this.onMouseMove.bind(this));
+                this.enterPointerLock(); // Re-enter pointer lock when switching to keyboard controls
+            }
         });
 
         window.addEventListener("keydown", (e) => {
@@ -199,6 +208,10 @@ class Gallery {
         instructions.addEventListener('click', () => {
             this.enterPointerLock();
         });
+    }
+
+    enterPointerLock() {
+        this.renderer.domElement.requestPointerLock();
     }
     
     // Method to hide blocker and instructions
@@ -236,7 +249,7 @@ class Gallery {
         this.pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.pitch));
 
         const yawQuaternion = new THREE.Quaternion();
-        yawQuaternion .setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
+        yawQuaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
 
         const pitchQuaternion = new THREE.Quaternion();
         pitchQuaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), this.pitch);
@@ -261,7 +274,7 @@ class Gallery {
             const joystickForward = new THREE.Vector3(data.vector.x, 0, data.vector.y).normalize();
             this.joystickDirection.copy(joystickForward); // Update joystick direction
         });
-    
+
         this.joystick.on('end', () => {
             this.joystickDirection.set(0, 0, 0); // Reset joystick direction
         });
@@ -269,18 +282,38 @@ class Gallery {
 
     handleControls() {
         if (this.blockerActive) return; // Prevent controls if blocker is active
-
+    
         const speed = this.keys["Shift"] ? 0.2 : 0.1; 
-        const forward = new THREE.Vector3();
-        this.camera.getWorldDirection(forward);
-        forward.y = 0; 
-        forward.normalize();
-
-        const right = new THREE.Vector3();
-        right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-
-        // Keyboard controls
-        if (!this.useJoystick) {
+    
+        // Joystick controls
+        if (this.useJoystick) {
+            if (this.joystickDirection.length() > 0) {
+                // Calculate the forward direction based on the camera's orientation
+                const forward = new THREE.Vector3();
+                this.camera.getWorldDirection(forward);
+                forward.y = 0; // Ignore vertical movement
+                forward.normalize();
+    
+                // Calculate the right direction based on the camera's orientation
+                const right = new THREE.Vector3();
+                right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+    
+                // Move the camera based on joystick input
+                // The joystick's y value controls forward/backward movement
+                this.camera.position.add(forward.multiplyScalar(this.joystickDirection.y * speed)); // Forward/Backward
+                // The joystick's x value controls left/right movement
+                this.camera.position.add(right.multiplyScalar(this.joystickDirection.x * speed)); // Left/Right
+            }
+        } else {
+            // Keyboard controls
+            const forward = new THREE.Vector3();
+            this.camera.getWorldDirection(forward);
+            forward.y = 0; 
+            forward.normalize();
+    
+            const right = new THREE.Vector3();
+            right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+    
             if (this.keys["w"]) this.camera.position.add(forward.clone().multiplyScalar(speed));
             if (this.keys["s"]) this.camera.position.add(forward.clone().negate().multiplyScalar(speed));
             if (this.keys["a"]) this.camera.position.add(right.clone().negate().multiplyScalar(speed));
@@ -289,26 +322,22 @@ class Gallery {
                 this.isJumping = true;
                 this.verticalVelocity = this.jumpStrength; 
             }
-        } else {
-            // Joystick controls
-            if (this.joystickDirection.length() > 0) {
-                this.camera.position.add(this.joystickDirection.clone().multiplyScalar(speed));
-            }
         }
-
+    
         if (this.isJumping) {
             this.verticalVelocity += this.gravity;
             this.camera.position.y += this.verticalVelocity;
-
+    
             if (this.camera.position.y <= this.groundLevel) {
                 this.camera.position.y = this.groundLevel;
                 this.isJumping = false;
                 this.verticalVelocity = 0; 
             }
         }
-
+    
         this.checkCollision();
     }
+
 
     checkCollision() {
         const halfWidth = this.gallerySize.width / 2;
